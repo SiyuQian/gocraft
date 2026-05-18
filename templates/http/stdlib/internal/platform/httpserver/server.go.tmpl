@@ -1,0 +1,27 @@
+package httpserver
+
+import (
+	"log/slog"
+	"net/http"
+
+	"{{.Module}}/internal/health"
+	"{{.Module}}/internal/platform/config"
+)
+
+func New(cfg config.Config, logger *slog.Logger) *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", health.Healthz)
+	return &http.Server{Addr: cfg.Addr, Handler: withRecover(logger, mux)}
+}
+
+func withRecover(logger *slog.Logger, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				logger.Error("panic", "err", rec, "path", r.URL.Path)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+			}
+		}()
+		h.ServeHTTP(w, r)
+	})
+}

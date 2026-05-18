@@ -12,25 +12,36 @@ import (
 	"github.com/siyuqian/gocraft/internal/prompt"
 )
 
-func TestAcceptance_ChiBuilds(t *testing.T) {
-	cfg := prompt.Config{
-		Name:   "demoapp",
-		Module: "example.com/demoapp",
-		HTTP:   prompt.HTTPChi,
-		Async:  prompt.AsyncNone,
-		Sentry: false,
-		Output: t.TempDir(),
+func TestAcceptance_HTTPLayers(t *testing.T) {
+	cases := []struct {
+		name string
+		http string
+	}{
+		{"chi", prompt.HTTPChi},
+		{"stdlib", prompt.HTTPStdlib},
 	}
-	if err := generate.Render(cfg, generate.EmbeddedFS(), generate.Layers(cfg), cfg.Output); err != nil {
-		t.Fatalf("Render: %v", err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := prompt.Config{
+				Name:   "demoapp",
+				Module: "example.com/demoapp",
+				HTTP:   tc.http,
+				Async:  prompt.AsyncNone,
+				Sentry: false,
+				Output: t.TempDir(),
+			}
+			if err := generate.Render(cfg, generate.EmbeddedFS(), generate.Layers(cfg), cfg.Output); err != nil {
+				t.Fatalf("Render: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(cfg.Output, "go.mod")); err != nil {
+				t.Fatalf("go.mod missing: %v", err)
+			}
+			mustRun(t, cfg.Output, "go", "mod", "tidy")
+			mustRun(t, cfg.Output, "go", "vet", "./...")
+			mustRun(t, cfg.Output, "go", "build", "./...")
+			mustRun(t, cfg.Output, "go", "test", "./...")
+		})
 	}
-	if _, err := os.Stat(filepath.Join(cfg.Output, "go.mod")); err != nil {
-		t.Fatalf("go.mod missing: %v", err)
-	}
-	mustRun(t, cfg.Output, "go", "mod", "tidy")
-	mustRun(t, cfg.Output, "go", "vet", "./...")
-	mustRun(t, cfg.Output, "go", "build", "./...")
-	mustRun(t, cfg.Output, "go", "test", "./...")
 }
 
 func mustRun(t *testing.T, dir, name string, args ...string) {

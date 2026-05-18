@@ -12,13 +12,16 @@ import (
 	"github.com/siyuqian/gocraft/internal/prompt"
 )
 
-func TestAcceptance_HTTPLayers(t *testing.T) {
+func TestAcceptance_Combinations(t *testing.T) {
 	cases := []struct {
-		name string
-		http string
+		name  string
+		http  string
+		async string
 	}{
-		{"chi", prompt.HTTPChi},
-		{"stdlib", prompt.HTTPStdlib},
+		{"chi+none", prompt.HTTPChi, prompt.AsyncNone},
+		{"stdlib+none", prompt.HTTPStdlib, prompt.AsyncNone},
+		{"chi+pool", prompt.HTTPChi, prompt.AsyncPool},
+		{"chi+river", prompt.HTTPChi, prompt.AsyncRiver},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -26,7 +29,7 @@ func TestAcceptance_HTTPLayers(t *testing.T) {
 				Name:   "demoapp",
 				Module: "example.com/demoapp",
 				HTTP:   tc.http,
-				Async:  prompt.AsyncNone,
+				Async:  tc.async,
 				Sentry: false,
 				Output: t.TempDir(),
 			}

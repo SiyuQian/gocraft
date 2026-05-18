@@ -1,0 +1,73 @@
+// Package worker provides a stdlib-only goroutine-pool worker for
+// fire-and-forget async tasks. Jobs are not persisted; the queue is in-memory
+// and any pending work is lost on shutdown. For durable, persistent jobs use
+// the `river` async backend instead.
+package worker
+
+import (
+	"context"
+	"log/slog"
+	"sync"
+
+	"{{.Module}}/internal/platform/db"
+)
+
+const defaultWorkers = 4
+
+type Job func(ctx context.Context)
+
+type Worker struct {
+	jobs   chan Job
+	wg     sync.WaitGroup
+	logger *slog.Logger
+}
+
+// Start launches a fixed-size goroutine pool that processes Jobs submitted
+// via (*Worker).Submit. The pool size is defaultWorkers. The returned Worker
+// must be Stop()ed during shutdown so in-flight Jobs can drain.
+//
+// The pool parameter is unused for this backend but kept in the signature so
+// that switching between async backends does not require changing main.go.
+func Start(ctx context.Context, logger *slog.Logger, _ *db.Pool) (*Worker, error) {
+	w := &Worker{
+		jobs:   make(chan Job, 64),
+		logger: logger,
+	}
+	for i := 0; i < defaultWorkers; i++ {
+		w.wg.Add(1)
+		go w.run(ctx)
+	}
+	return w, nil
+}
+
+func (w *Worker) run(ctx context.Context) {
+	defer w.wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case job, ok := <-w.jobs:
+			if !ok {
+				return
+			}
+			job(ctx)
+		}
+	}
+}
+
+// Submit enqueues a job. Returns false if the queue is full (caller decides
+// whether to drop, retry, or block).
+func (w *Worker) Submit(job Job) bool {
+	select {
+	case w.jobs <- job:
+		return true
+	default:
+		return false
+	}
+}
+
+// Stop closes the job channel and waits for in-flight jobs to finish.
+func (w *Worker) Stop() {
+	close(w.jobs)
+	w.wg.Wait()
+}

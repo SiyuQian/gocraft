@@ -8,4 +8,8 @@ require (
 {{- if eq .HTTP "chi"}}
 	github.com/go-chi/chi/v5 v5.1.0
 {{- end}}
+{{- if eq .Async "river"}}
+	github.com/riverqueue/river v0.14.1
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.14.1
+{{- end}}
 )

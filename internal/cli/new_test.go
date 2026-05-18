@@ -29,6 +29,8 @@ func TestNew_AllFlagsResolved(t *testing.T) {
 		"--no-sentry",
 		"--output", outDir,
 		"--no-tui",
+		"--no-tidy",
+		"--no-git",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

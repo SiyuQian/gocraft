@@ -1,0 +1,14 @@
+run:
+  timeout: 5m
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+issues:
+  exclude-rules:
+    # The acceptance test is gated behind a build tag and not built by default.
+    - path: internal/generate/acceptance_test.go
+      linters: [unused]

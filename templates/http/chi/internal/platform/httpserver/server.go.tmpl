@@ -11,6 +11,7 @@ import (
 	"{{.Module}}/internal/pets"
 	"{{.Module}}/internal/platform/config"
 	"{{.Module}}/internal/platform/db"
+	"{{.Module}}/internal/platform/obs"
 )
 
 func New(cfg config.Config, logger *slog.Logger, pool *db.Pool) *http.Server {
@@ -23,7 +24,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *db.Pool) *http.Server {
 		h := pets.NewHandler(pets.NewService(pets.NewRepo(pool)), chiID)
 		h.Register(chiRouter{r})
 	}
-	return &http.Server{Addr: cfg.Addr, Handler: r}
+	return &http.Server{Addr: cfg.Addr, Handler: obs.Middleware(r)}
 }
 
 type chiRouter struct{ r chi.Router }

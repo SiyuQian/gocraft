@@ -1,0 +1,51 @@
+// Package obs is the observability seam, wired up to Sentry.
+//
+// Configuration is via environment variables:
+//   - SENTRY_DSN: required to enable; if empty, Init becomes a no-op
+//   - SENTRY_ENVIRONMENT: optional environment tag
+//   - SENTRY_TRACES_SAMPLE_RATE: optional float in [0,1]; default 0
+package obs
+
+import (
+	"log/slog"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
+)
+
+const flushTimeout = 2 * time.Second
+
+// Init configures the Sentry SDK from env. If SENTRY_DSN is empty, Init is a
+// no-op so non-production runs do not require a DSN.
+func Init(logger *slog.Logger) {
+	dsn := os.Getenv("SENTRY_DSN")
+	if dsn == "" {
+		return
+	}
+	opts := sentry.ClientOptions{
+		Dsn:         dsn,
+		Environment: os.Getenv("SENTRY_ENVIRONMENT"),
+	}
+	if v := os.Getenv("SENTRY_TRACES_SAMPLE_RATE"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			opts.TracesSampleRate = f
+		}
+	}
+	if err := sentry.Init(opts); err != nil {
+		logger.Error("sentry init", "err", err)
+	}
+}
+
+// Flush waits up to flushTimeout for pending events to be sent.
+func Flush() { sentry.Flush(flushTimeout) }
+
+// Middleware wraps h with Sentry's request handler. Panics are captured and
+// re-raised so chi/stdlib's recoverer still produces a 500 response.
+func Middleware(h http.Handler) http.Handler {
+	sh := sentryhttp.New(sentryhttp.Options{Repanic: true})
+	return sh.Handle(h)
+}

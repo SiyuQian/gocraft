@@ -12,6 +12,7 @@ import (
 	"{{.Module}}/internal/platform/config"
 	"{{.Module}}/internal/platform/db"
 	"{{.Module}}/internal/platform/httpserver"
+	"{{.Module}}/internal/platform/obs"
 {{- if ne .Async "none"}}
 	"{{.Module}}/internal/platform/worker"
 {{- end}}
@@ -24,6 +25,9 @@ func main() {
 		logger.Error("config load", "err", err)
 		os.Exit(1)
 	}
+
+	obs.Init(logger)
+	defer obs.Flush()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

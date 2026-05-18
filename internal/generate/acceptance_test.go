@@ -14,14 +14,17 @@ import (
 
 func TestAcceptance_Combinations(t *testing.T) {
 	cases := []struct {
-		name  string
-		http  string
-		async string
+		name   string
+		http   string
+		async  string
+		sentry bool
 	}{
-		{"chi+none", prompt.HTTPChi, prompt.AsyncNone},
-		{"stdlib+none", prompt.HTTPStdlib, prompt.AsyncNone},
-		{"chi+pool", prompt.HTTPChi, prompt.AsyncPool},
-		{"chi+river", prompt.HTTPChi, prompt.AsyncRiver},
+		{"chi+none", prompt.HTTPChi, prompt.AsyncNone, false},
+		{"stdlib+none", prompt.HTTPStdlib, prompt.AsyncNone, false},
+		{"chi+pool", prompt.HTTPChi, prompt.AsyncPool, false},
+		{"chi+river", prompt.HTTPChi, prompt.AsyncRiver, false},
+		{"chi+sentry", prompt.HTTPChi, prompt.AsyncNone, true},
+		{"stdlib+sentry", prompt.HTTPStdlib, prompt.AsyncNone, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -30,7 +33,7 @@ func TestAcceptance_Combinations(t *testing.T) {
 				Module: "example.com/demoapp",
 				HTTP:   tc.http,
 				Async:  tc.async,
-				Sentry: false,
+				Sentry: tc.sentry,
 				Output: t.TempDir(),
 			}
 			if err := generate.Render(cfg, generate.EmbeddedFS(), generate.Layers(cfg), cfg.Output); err != nil {

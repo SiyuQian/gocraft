@@ -1,0 +1,20 @@
+package httpserver
+
+import (
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	"{{.Module}}/internal/health"
+	"{{.Module}}/internal/platform/config"
+)
+
+func New(cfg config.Config, logger *slog.Logger) *http.Server {
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Recoverer)
+	r.Get("/healthz", health.Healthz)
+	return &http.Server{Addr: cfg.Addr, Handler: r}
+}

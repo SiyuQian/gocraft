@@ -22,7 +22,12 @@ func newNewCmd() *cobra.Command {
 			}
 
 			if !cfg.NoTUI {
-				if err := tui.Run(&cfg); err != nil {
+				skip := tui.SkipMask{
+					HTTP:   cmd.Flags().Changed("http"),
+					Async:  cmd.Flags().Changed("async"),
+					Sentry: cmd.Flags().Changed("sentry") || cmd.Flags().Changed("no-sentry"),
+				}
+				if err := tui.Run(&cfg, skip); err != nil {
 					return err
 				}
 			}

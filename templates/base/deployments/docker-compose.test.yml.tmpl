@@ -1,0 +1,9 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: {{.Name}}
+      POSTGRES_PASSWORD: {{.Name}}
+      POSTGRES_DB: {{.Name}}_test
+    ports:
+      - "55432:5432"

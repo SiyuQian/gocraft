@@ -1,0 +1,13 @@
+package httpserver
+
+import (
+	"log/slog"
+	"net/http"
+
+	"{{.Module}}/internal/platform/config"
+)
+
+func New(cfg config.Config, logger *slog.Logger) *http.Server {
+	mux := http.NewServeMux()
+	return &http.Server{Addr: cfg.Addr, Handler: mux}
+}

@@ -1,0 +1,29 @@
+package config
+
+import (
+	"flag"
+	"os"
+)
+
+type Config struct {
+	Addr     string
+	LogLevel string
+}
+
+func Load() (Config, error) {
+	c := Config{
+		Addr:     getenv("APP_ADDR", ":8080"),
+		LogLevel: getenv("LOG_LEVEL", "info"),
+	}
+	flag.StringVar(&c.Addr, "addr", c.Addr, "HTTP listen address")
+	flag.StringVar(&c.LogLevel, "log-level", c.LogLevel, "log level")
+	flag.Parse()
+	return c, nil
+}
+
+func getenv(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}

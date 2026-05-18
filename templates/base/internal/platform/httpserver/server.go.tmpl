@@ -5,9 +5,10 @@ import (
 	"net/http"
 
 	"{{.Module}}/internal/platform/config"
+	"{{.Module}}/internal/platform/db"
 )
 
-func New(cfg config.Config, logger *slog.Logger) *http.Server {
+func New(cfg config.Config, logger *slog.Logger, pool *db.Pool) *http.Server {
 	mux := http.NewServeMux()
 	return &http.Server{Addr: cfg.Addr, Handler: mux}
 }

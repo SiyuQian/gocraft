@@ -1,0 +1,15 @@
+package api
+
+import "time"
+
+type Pet struct {
+	ID        string    `json:"id" db:"id"`
+	Name      string    `json:"name" db:"name"`
+	Species   string    `json:"species" db:"species"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+type CreatePetRequest struct {
+	Name    string `json:"name"`
+	Species string `json:"species"`
+}

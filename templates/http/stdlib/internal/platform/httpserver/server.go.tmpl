@@ -5,14 +5,29 @@ import (
 	"net/http"
 
 	"{{.Module}}/internal/health"
+	"{{.Module}}/internal/pets"
 	"{{.Module}}/internal/platform/config"
+	"{{.Module}}/internal/platform/db"
 )
 
-func New(cfg config.Config, logger *slog.Logger) *http.Server {
+func New(cfg config.Config, logger *slog.Logger, pool *db.Pool) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Healthz)
+
+	if pool != nil {
+		h := pets.NewHandler(pets.NewService(pets.NewRepo(pool)), stdlibID)
+		h.Register(muxRouter{mux})
+	}
 	return &http.Server{Addr: cfg.Addr, Handler: withRecover(logger, mux)}
 }
+
+type muxRouter struct{ m *http.ServeMux }
+
+func (s muxRouter) Handle(method, pattern string, h http.HandlerFunc) {
+	s.m.HandleFunc(method+" "+pattern, h)
+}
+
+func stdlibID(r *http.Request, name string) string { return r.PathValue(name) }
 
 func withRecover(logger *slog.Logger, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

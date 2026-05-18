@@ -1,0 +1,48 @@
+package pets
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"{{.Module}}/internal/api"
+	"{{.Module}}/internal/platform/db"
+)
+
+type Repo struct {
+	pool *pgxpool.Pool
+}
+
+func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{pool: pool} }
+
+func (r *Repo) List(ctx context.Context) ([]api.Pet, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id, name, species, created_at FROM pets ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByNameLax[api.Pet])
+}
+
+func (r *Repo) Insert(ctx context.Context, p api.Pet) error {
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO pets (id, name, species, created_at) VALUES (@id, @name, @species, @created_at)`,
+		db.NamedArgs(struct {
+			ID        string `db:"id"`
+			Name      string `db:"name"`
+			Species   string `db:"species"`
+			CreatedAt any    `db:"created_at"`
+		}{p.ID, p.Name, p.Species, p.CreatedAt}),
+	)
+	return err
+}
+
+func (r *Repo) Get(ctx context.Context, id string) (api.Pet, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, name, species, created_at FROM pets WHERE id = @id`,
+		pgx.NamedArgs{"id": id})
+	if err != nil {
+		return api.Pet{}, err
+	}
+	return pgx.CollectExactlyOneRow(rows, pgx.RowToStructByNameLax[api.Pet])
+}

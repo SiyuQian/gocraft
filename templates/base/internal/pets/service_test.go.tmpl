@@ -1,0 +1,55 @@
+package pets
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"{{.Module}}/internal/api"
+)
+
+type fakeRepo struct {
+	pets map[string]api.Pet
+}
+
+func (f *fakeRepo) List(_ context.Context) ([]api.Pet, error) {
+	out := make([]api.Pet, 0, len(f.pets))
+	for _, p := range f.pets {
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+func (f *fakeRepo) Insert(_ context.Context, p api.Pet) error {
+	if f.pets == nil {
+		f.pets = map[string]api.Pet{}
+	}
+	f.pets[p.ID] = p
+	return nil
+}
+
+func (f *fakeRepo) Get(_ context.Context, id string) (api.Pet, error) {
+	p, ok := f.pets[id]
+	if !ok {
+		return api.Pet{}, errors.New("not found")
+	}
+	return p, nil
+}
+
+func TestService_CreateThenGet(t *testing.T) {
+	svc := NewService(&fakeRepo{})
+	p, err := svc.Create(context.Background(), api.CreatePetRequest{Name: "rex", Species: "dog"})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if p.ID == "" {
+		t.Fatal("id empty")
+	}
+	got, err := svc.Get(context.Background(), p.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Name != "rex" {
+		t.Fatalf("name = %q", got.Name)
+	}
+}

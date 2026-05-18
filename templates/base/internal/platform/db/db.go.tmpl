@@ -1,0 +1,45 @@
+package db
+
+import (
+	"context"
+	"fmt"
+	"reflect"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// Pool is an alias for pgxpool.Pool for convenience in callers.
+type Pool = pgxpool.Pool
+
+func Open(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("pgxpool.New: %w", err)
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ping: %w", err)
+	}
+	return pool, nil
+}
+
+// NamedArgs converts a struct's `db:"name"`-tagged fields into pgx.NamedArgs.
+// Fields without a db tag are skipped.
+func NamedArgs(v any) pgx.NamedArgs {
+	out := pgx.NamedArgs{}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	rt := rv.Type()
+	for i := 0; i < rt.NumField(); i++ {
+		f := rt.Field(i)
+		tag := f.Tag.Get("db")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		out[tag] = rv.Field(i).Interface()
+	}
+	return out
+}

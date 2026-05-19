@@ -8,13 +8,28 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"{{.Module}}/internal/health"
+	"{{.Module}}/internal/pets"
 	"{{.Module}}/internal/platform/config"
+	"{{.Module}}/internal/platform/db"
 )
 
-func New(cfg config.Config, logger *slog.Logger) *http.Server {
+func New(cfg config.Config, logger *slog.Logger, pool *db.Pool) *http.Server {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
 	r.Get("/healthz", health.Healthz)
+
+	if pool != nil {
+		h := pets.NewHandler(pets.NewService(pets.NewRepo(pool)), chiID)
+		h.Register(chiRouter{r})
+	}
 	return &http.Server{Addr: cfg.Addr, Handler: r}
 }
+
+type chiRouter struct{ r chi.Router }
+
+func (c chiRouter) Handle(method, pattern string, h http.HandlerFunc) {
+	c.r.Method(method, pattern, h)
+}
+
+func chiID(r *http.Request, name string) string { return chi.URLParam(r, name) }

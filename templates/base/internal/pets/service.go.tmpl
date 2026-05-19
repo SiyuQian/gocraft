@@ -1,0 +1,49 @@
+package pets
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"time"
+
+	"{{.Module}}/internal/api"
+)
+
+type Service struct {
+	repo Repository
+}
+
+type Repository interface {
+	List(ctx context.Context) ([]api.Pet, error)
+	Insert(ctx context.Context, p api.Pet) error
+	Get(ctx context.Context, id string) (api.Pet, error)
+}
+
+func NewService(r Repository) *Service { return &Service{repo: r} }
+
+func (s *Service) List(ctx context.Context) ([]api.Pet, error) {
+	return s.repo.List(ctx)
+}
+
+func (s *Service) Create(ctx context.Context, req api.CreatePetRequest) (api.Pet, error) {
+	p := api.Pet{
+		ID:        newID(),
+		Name:      req.Name,
+		Species:   req.Species,
+		CreatedAt: time.Now().UTC(),
+	}
+	if err := s.repo.Insert(ctx, p); err != nil {
+		return api.Pet{}, err
+	}
+	return p, nil
+}
+
+func (s *Service) Get(ctx context.Context, id string) (api.Pet, error) {
+	return s.repo.Get(ctx, id)
+}
+
+func newID() string {
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	return hex.EncodeToString(b[:])
+}

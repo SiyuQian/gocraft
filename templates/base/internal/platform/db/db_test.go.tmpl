@@ -1,0 +1,20 @@
+package db
+
+import "testing"
+
+type sample struct {
+	ID    string `db:"id"`
+	Name  string `db:"name"`
+	Skip  string
+	Other int `db:"other"`
+}
+
+func TestNamedArgs(t *testing.T) {
+	got := NamedArgs(sample{ID: "x", Name: "n", Skip: "s", Other: 42})
+	if got["id"] != "x" || got["name"] != "n" || got["other"] != 42 {
+		t.Fatalf("got = %v", got)
+	}
+	if _, ok := got["Skip"]; ok {
+		t.Fatal("Skip should be excluded (no db tag)")
+	}
+}

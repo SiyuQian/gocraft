@@ -9,3 +9,25 @@ paths:
       responses:
         '200':
           description: ok
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: list
+    post:
+      operationId: createPet
+      responses:
+        '201':
+          description: created
+  /pets/{id}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: ok

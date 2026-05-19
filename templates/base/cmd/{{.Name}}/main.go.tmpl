@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"{{.Module}}/internal/platform/config"
+	"{{.Module}}/internal/platform/db"
 	"{{.Module}}/internal/platform/httpserver"
 )
 
@@ -21,9 +22,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := httpserver.New(cfg, logger)
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	var pool *db.Pool
+	if cfg.DatabaseURL != "" {
+		pool, err = db.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			logger.Error("db open", "err", err)
+			os.Exit(1)
+		}
+		defer pool.Close()
+	}
+
+	srv := httpserver.New(cfg, logger, pool)
 
 	go func() {
 		logger.Info("listening", "addr", cfg.Addr)

@@ -1,0 +1,69 @@
+package pets
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"{{.Module}}/internal/api"
+)
+
+// Router is a minimal interface satisfied by chi and the stdlib mux adapter.
+type Router interface {
+	Handle(method, pattern string, h http.HandlerFunc)
+}
+
+// IDExtractor pulls a named path parameter from the request.
+// Chi callers pass chi.URLParam; stdlib callers pass (*http.Request).PathValue.
+type IDExtractor func(r *http.Request, name string) string
+
+type Handler struct {
+	svc *Service
+	id  IDExtractor
+}
+
+func NewHandler(svc *Service, id IDExtractor) *Handler { return &Handler{svc: svc, id: id} }
+
+func (h *Handler) Register(r Router) {
+	r.Handle(http.MethodGet, "/pets", h.list)
+	r.Handle(http.MethodPost, "/pets", h.create)
+	r.Handle(http.MethodGet, "/pets/{id}", h.get)
+}
+
+func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+	pets, err := h.svc.List(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, pets)
+}
+
+func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+	var req api.CreatePetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.Create(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusCreated, p)
+}
+
+func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+	id := h.id(r, "id")
+	p, err := h.svc.Get(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusOK, p)
+}
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(v)
+}

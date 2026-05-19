@@ -43,6 +43,9 @@ func TestAcceptance_HTTPLayers(t *testing.T) {
 					t.Fatalf("%s missing: %v", rel, err)
 				}
 			}
+			if _, err := os.Stat(filepath.Join(cfg.Output, "migrations", "0001_init.up.sql")); err != nil {
+				t.Fatalf("migrations/0001_init.up.sql missing: %v", err)
+			}
 			mustRun(t, cfg.Output, "go", "mod", "tidy")
 			mustRun(t, cfg.Output, "go", "vet", "./...")
 			mustRun(t, cfg.Output, "go", "build", "./...")

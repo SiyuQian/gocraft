@@ -6,14 +6,16 @@ import (
 )
 
 type Config struct {
-	Addr     string
-	LogLevel string
+	Addr        string
+	LogLevel    string
+	DatabaseURL string
 }
 
 func Load() (Config, error) {
 	c := Config{
-		Addr:     getenv("APP_ADDR", ":8080"),
-		LogLevel: getenv("LOG_LEVEL", "info"),
+		Addr:        getenv("APP_ADDR", ":8080"),
+		LogLevel:    getenv("LOG_LEVEL", "info"),
+		DatabaseURL: os.Getenv("DATABASE_URL"),
 	}
 	flag.StringVar(&c.Addr, "addr", c.Addr, "HTTP listen address")
 	flag.StringVar(&c.LogLevel, "log-level", c.LogLevel, "log level")

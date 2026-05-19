@@ -24,8 +24,15 @@ func TestAcceptance_ChiBuilds(t *testing.T) {
 	if err := generate.Render(cfg, generate.EmbeddedFS(), generate.Layers(cfg), cfg.Output); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(cfg.Output, "go.mod")); err != nil {
-		t.Fatalf("go.mod missing: %v", err)
+	for _, rel := range []string{
+		"go.mod",
+		".gitignore",
+		".golangci.yml",
+		".github/workflows/test-and-lint.yml",
+	} {
+		if _, err := os.Stat(filepath.Join(cfg.Output, rel)); err != nil {
+			t.Fatalf("%s missing: %v", rel, err)
+		}
 	}
 	mustRun(t, cfg.Output, "go", "mod", "tidy")
 	mustRun(t, cfg.Output, "go", "vet", "./...")

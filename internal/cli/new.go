@@ -1,10 +1,11 @@
 package cli
 
 import (
-	"encoding/json"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/siyuqian/gocraft/internal/generate"
 	"github.com/siyuqian/gocraft/internal/prompt"
 	"github.com/siyuqian/gocraft/internal/tui"
 )
@@ -40,9 +41,12 @@ func newNewCmd() *cobra.Command {
 				return err
 			}
 
-			enc := json.NewEncoder(cmd.OutOrStdout())
-			enc.SetIndent("", "  ")
-			return enc.Encode(cfg)
+			fsys := generate.EmbeddedFS()
+			if err := generate.Render(cfg, fsys, generate.Layers(cfg), cfg.Output); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "created %s\nnext: cd %s && make run\n", cfg.Output, cfg.Output)
+			return nil
 		},
 	}
 

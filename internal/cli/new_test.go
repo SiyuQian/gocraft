@@ -2,7 +2,8 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -19,31 +20,43 @@ func runCmd(t *testing.T, args ...string) (string, string, error) {
 }
 
 func TestNew_AllFlagsResolved(t *testing.T) {
+	outDir := t.TempDir()
 	out, _, err := runCmd(t,
 		"new", "myapp",
 		"--module", "github.com/you/myapp",
 		"--http", "chi",
-		"--async", "river",
-		"--sentry",
-		"--output", "/tmp/myapp",
+		"--async", "none",
+		"--no-sentry",
+		"--output", outDir,
 		"--no-tui",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(out, `"Name": "myapp"`) {
-		t.Errorf("output missing name: %s", out)
+	if !strings.Contains(out, "created") {
+		t.Errorf("expected success message, got: %s", out)
 	}
-	var got map[string]any
-	if err := json.Unmarshal([]byte(out), &got); err != nil {
-		t.Fatalf("output not valid JSON: %v\n%s", err, out)
+	assertFile(t, outDir, "go.mod")
+	assertFile(t, outDir, "cmd/myapp/main.go")
+	assertFile(t, outDir, "internal/platform/httpserver/server.go")
+	assertFile(t, outDir, "internal/health/handler.go")
+}
+
+func TestNew_OutputDefaultsFromName(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	_, _, err := runCmd(t,
+		"new", "myapp",
+		"--module", "github.com/you/myapp",
+		"--http", "chi",
+		"--async", "none",
+		"--no-sentry",
+		"--no-tui",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if got["Module"] != "github.com/you/myapp" {
-		t.Errorf("Module = %v", got["Module"])
-	}
-	if got["Async"] != "river" {
-		t.Errorf("Async = %v", got["Async"])
-	}
+	assertFile(t, filepath.Join(dir, "myapp"), "go.mod")
 }
 
 func TestNew_NoTUI_MissingModule(t *testing.T) {
@@ -56,22 +69,6 @@ func TestNew_NoTUI_MissingModule(t *testing.T) {
 	}
 }
 
-func TestNew_OutputDefaultsFromName(t *testing.T) {
-	out, _, err := runCmd(t,
-		"new", "myapp",
-		"--module", "m",
-		"--no-tui",
-	)
-	if err != nil {
-		t.Fatalf("unexpected: %v", err)
-	}
-	var got map[string]any
-	_ = json.Unmarshal([]byte(out), &got)
-	if got["Output"] != "./myapp" {
-		t.Errorf("Output = %v, want ./myapp", got["Output"])
-	}
-}
-
 func TestNew_BadHTTP(t *testing.T) {
 	_, _, err := runCmd(t,
 		"new", "myapp",
@@ -81,5 +78,13 @@ func TestNew_BadHTTP(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+func assertFile(t *testing.T, dir, rel string) {
+	t.Helper()
+	path := filepath.Join(dir, filepath.FromSlash(rel))
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("expected file %s: %v", rel, err)
 	}
 }

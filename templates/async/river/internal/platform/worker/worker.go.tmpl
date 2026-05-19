@@ -49,12 +49,14 @@ func Start(ctx context.Context, logger *slog.Logger, pool *db.Pool) (*Worker, er
 // Client returns the underlying river.Client for enqueuing jobs.
 func (w *Worker) Client() *river.Client[pgx.Tx] { return w.client }
 
-// Stop drains the worker and closes the river client.
-func (w *Worker) Stop() {
+// Stop drains the worker and closes the river client. The supplied context
+// bounds how long Stop will wait for in-flight jobs to finish; pass a deadline
+// to avoid blocking shutdown indefinitely.
+func (w *Worker) Stop(ctx context.Context) {
 	if w.client == nil {
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_ = w.client.Stop(ctx)
+	if err := w.client.Stop(ctx); err != nil {
+		w.logger.Error("river stop", "err", err)
+	}
 }

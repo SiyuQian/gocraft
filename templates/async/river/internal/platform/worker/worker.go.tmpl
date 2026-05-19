@@ -1,0 +1,62 @@
+// Package worker provides a river-backed async worker. Jobs are persisted in
+// Postgres and retried with exponential backoff. River's own schema must be
+// migrated separately: run `go run github.com/riverqueue/river/cmd/river
+// migrate-up --database-url $DATABASE_URL` once before starting the worker.
+package worker
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+
+	"{{.Module}}/internal/platform/db"
+)
+
+// Worker holds a running river.Client.
+type Worker struct {
+	client *river.Client[pgx.Tx]
+	logger *slog.Logger
+}
+
+// Start spins up a river client backed by the supplied pgx pool. If pool is
+// nil (no DATABASE_URL), Start returns an error — river requires Postgres.
+func Start(ctx context.Context, logger *slog.Logger, pool *db.Pool) (*Worker, error) {
+	if pool == nil {
+		return nil, errors.New("worker: river requires DATABASE_URL")
+	}
+	workers := river.NewWorkers()
+	// Register additional worker types here as your project grows.
+
+	client, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+		Queues: map[string]river.QueueConfig{
+			river.QueueDefault: {MaxWorkers: 4},
+		},
+		Workers: workers,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := client.Start(ctx); err != nil {
+		return nil, err
+	}
+	return &Worker{client: client, logger: logger}, nil
+}
+
+// Client returns the underlying river.Client for enqueuing jobs.
+func (w *Worker) Client() *river.Client[pgx.Tx] { return w.client }
+
+// Stop drains the worker and closes the river client. The supplied context
+// bounds how long Stop will wait for in-flight jobs to finish; pass a deadline
+// to avoid blocking shutdown indefinitely.
+func (w *Worker) Stop(ctx context.Context) {
+	if w.client == nil {
+		return
+	}
+	if err := w.client.Stop(ctx); err != nil {
+		w.logger.Error("river stop", "err", err)
+	}
+}

@@ -1,0 +1,36 @@
+package worker
+
+import (
+	"context"
+	"log/slog"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+func TestWorker_SubmitProcessesJob(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	w, err := Start(ctx, slog.Default(), nil)
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer w.Stop(ctx)
+
+	var count int32
+	done := make(chan struct{})
+	if !w.Submit(func(_ context.Context) {
+		atomic.AddInt32(&count, 1)
+		close(done)
+	}) {
+		t.Fatal("submit returned false")
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("job did not run")
+	}
+	if atomic.LoadInt32(&count) != 1 {
+		t.Fatalf("count = %d", count)
+	}
+}

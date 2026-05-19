@@ -12,6 +12,9 @@ import (
 	"{{.Module}}/internal/platform/config"
 	"{{.Module}}/internal/platform/db"
 	"{{.Module}}/internal/platform/httpserver"
+{{- if ne .Async "none"}}
+	"{{.Module}}/internal/platform/worker"
+{{- end}}
 )
 
 func main() {
@@ -35,6 +38,14 @@ func main() {
 		defer pool.Close()
 	}
 
+{{- if ne .Async "none"}}
+	w, err := worker.Start(ctx, logger, pool)
+	if err != nil {
+		logger.Error("worker start", "err", err)
+		os.Exit(1)
+	}
+{{- end}}
+
 	srv := httpserver.New(cfg, logger, pool)
 
 	go func() {
@@ -49,4 +60,7 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
+{{- if ne .Async "none"}}
+	w.Stop(shutdownCtx)
+{{- end}}
 }

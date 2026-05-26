@@ -1,6 +1,26 @@
+// Package obs is the observability seam. The base implementation here is a
+// no-op. When the project is scaffolded with the Sentry preset, this file is
+// overridden with a real Sentry-backed implementation that exposes the same
+// API (Init / Flush / Middleware), so call sites in cmd/main.go and the HTTP
+// server are independent of which backend is wired up.
 package obs
 
-import "log/slog"
+import (
+	"context"
+	"log/slog"
+	"net/http"
 
-func Init(logger *slog.Logger) {}
-func Flush() {}
+	"{{.Module}}/internal/platform/config"
+)
+
+// Init is called once at startup. Implementations may consume cfg / env vars
+// (e.g. SENTRY_DSN) to set up SDKs. The no-op base returns immediately.
+func Init(_ config.Config, _ *slog.Logger) {}
+
+// Flush is called from main's shutdown path. Implementations should drain any
+// in-flight error/event queue, honouring ctx's deadline as the upper bound.
+func Flush(_ context.Context) {}
+
+// Middleware wraps an http.Handler with observability instrumentation. The
+// no-op base returns the handler unchanged.
+func Middleware(h http.Handler) http.Handler { return h }

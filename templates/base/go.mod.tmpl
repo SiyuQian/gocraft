@@ -12,4 +12,7 @@ require (
 	github.com/riverqueue/river v0.14.1
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.14.1
 {{- end}}
+{{- if .Sentry}}
+	github.com/getsentry/sentry-go v0.29.0
+{{- end}}
 )

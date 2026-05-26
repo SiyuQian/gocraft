@@ -1,0 +1,76 @@
+// Package obs is the observability seam, wired up to Sentry.
+//
+// Configuration is via environment variables (read by config.Load):
+//   - SENTRY_DSN: required to enable; if empty, Init becomes a no-op
+//   - SENTRY_ENVIRONMENT: optional environment tag
+//   - SENTRY_TRACES_SAMPLE_RATE: optional float in [0,1]; values that fail
+//     to parse or fall outside the range are ignored with a warn log
+//   - SENTRY_RELEASE: optional release tag; sentry-go reads this directly
+//     from env, so events are grouped by deploy when set
+package obs
+
+import (
+	"context"
+	"log/slog"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
+
+	"{{.Module}}/internal/platform/config"
+)
+
+const flushMax = 2 * time.Second
+
+// Init configures the Sentry SDK from cfg. If cfg.SentryDSN is empty, Init is
+// a no-op so non-production runs do not require a DSN.
+func Init(cfg config.Config, logger *slog.Logger) {
+	if cfg.SentryDSN == "" {
+		return
+	}
+	opts := sentry.ClientOptions{
+		Dsn:         cfg.SentryDSN,
+		Environment: cfg.SentryEnvironment,
+	}
+	if v := cfg.SentryTracesSampleRate; v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		switch {
+		case err != nil:
+			logger.Warn("sentry: invalid SENTRY_TRACES_SAMPLE_RATE, ignoring", "value", v, "err", err)
+		case f < 0 || f > 1:
+			logger.Warn("sentry: SENTRY_TRACES_SAMPLE_RATE out of [0,1], ignoring", "value", f)
+		default:
+			opts.TracesSampleRate = f
+		}
+	}
+	if err := sentry.Init(opts); err != nil {
+		logger.Error("sentry init", "err", err)
+	}
+}
+
+// Flush drains pending Sentry events, bounded by ctx's deadline and capped at
+// flushMax. It shares the caller's shutdown budget rather than adding its own.
+func Flush(ctx context.Context) {
+	d := flushMax
+	if dl, ok := ctx.Deadline(); ok {
+		d = time.Until(dl)
+	}
+	if d <= 0 {
+		return
+	}
+	if d > flushMax {
+		d = flushMax
+	}
+	sentry.Flush(d)
+}
+
+// Middleware wraps h with Sentry's request handler so each request gets its
+// own hub. It must be installed INSIDE the recoverer (chi's middleware.Recoverer
+// or stdlib's withRecover) — with Repanic=true, sentryhttp captures the panic
+// and re-raises it so the surrounding recoverer still produces a 500.
+func Middleware(h http.Handler) http.Handler {
+	sh := sentryhttp.New(sentryhttp.Options{Repanic: true})
+	return sh.Handle(h)
+}

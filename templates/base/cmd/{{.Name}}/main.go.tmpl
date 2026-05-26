@@ -26,8 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	obs.Init(logger)
-	defer obs.Flush()
+	obs.Init(cfg, logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -67,4 +66,5 @@ func main() {
 {{- if ne .Async "none"}}
 	w.Stop(shutdownCtx)
 {{- end}}
+	obs.Flush(shutdownCtx)
 }

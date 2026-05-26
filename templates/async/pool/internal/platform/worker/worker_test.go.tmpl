@@ -15,7 +15,7 @@ func TestWorker_SubmitProcessesJob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	defer w.Stop()
+	defer w.Stop(ctx)
 
 	var count int32
 	done := make(chan struct{})

@@ -26,8 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	obs.Init(logger)
-	defer obs.Flush()
+	obs.Init(cfg, logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -48,7 +47,6 @@ func main() {
 		logger.Error("worker start", "err", err)
 		os.Exit(1)
 	}
-	defer w.Stop()
 {{- end}}
 
 	srv := httpserver.New(cfg, logger, pool)
@@ -65,4 +63,8 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
+{{- if ne .Async "none"}}
+	w.Stop(shutdownCtx)
+{{- end}}
+	obs.Flush(shutdownCtx)
 }

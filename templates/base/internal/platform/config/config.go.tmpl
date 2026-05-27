@@ -6,16 +6,22 @@ import (
 )
 
 type Config struct {
-	Addr        string
-	LogLevel    string
-	DatabaseURL string
+	Addr                   string
+	LogLevel               string
+	DatabaseURL            string
+	SentryDSN              string
+	SentryEnvironment      string
+	SentryTracesSampleRate string
 }
 
 func Load() (Config, error) {
 	c := Config{
-		Addr:        getenv("APP_ADDR", ":8080"),
-		LogLevel:    getenv("LOG_LEVEL", "info"),
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		Addr:                   getenv("APP_ADDR", ":8080"),
+		LogLevel:               getenv("LOG_LEVEL", "info"),
+		DatabaseURL:            os.Getenv("DATABASE_URL"),
+		SentryDSN:              os.Getenv("SENTRY_DSN"),
+		SentryEnvironment:      os.Getenv("SENTRY_ENVIRONMENT"),
+		SentryTracesSampleRate: os.Getenv("SENTRY_TRACES_SAMPLE_RATE"),
 	}
 	flag.StringVar(&c.Addr, "addr", c.Addr, "HTTP listen address")
 	flag.StringVar(&c.LogLevel, "log-level", c.LogLevel, "log level")

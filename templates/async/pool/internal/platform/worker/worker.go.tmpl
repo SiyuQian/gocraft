@@ -8,6 +8,7 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 
 	"{{.Module}}/internal/platform/db"
 )
@@ -17,9 +18,10 @@ const defaultWorkers = 4
 type Job func(ctx context.Context)
 
 type Worker struct {
-	jobs   chan Job
-	wg     sync.WaitGroup
-	logger *slog.Logger
+	jobs    chan Job
+	wg      sync.WaitGroup
+	logger  *slog.Logger
+	stopped atomic.Bool
 }
 
 // Start launches a fixed-size goroutine pool that processes Jobs submitted
@@ -45,6 +47,9 @@ func (w *Worker) run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			if n := len(w.jobs); n > 0 {
+				w.logger.Warn("pool worker exiting with buffered jobs", "dropped", n)
+			}
 			return
 		case job, ok := <-w.jobs:
 			if !ok {
@@ -55,9 +60,12 @@ func (w *Worker) run(ctx context.Context) {
 	}
 }
 
-// Submit enqueues a job. Returns false if the queue is full (caller decides
-// whether to drop, retry, or block).
+// Submit enqueues a job. Returns false if the queue is full or the worker has
+// been stopped. Caller decides whether to drop, retry, or block.
 func (w *Worker) Submit(job Job) bool {
+	if w.stopped.Load() {
+		return false
+	}
 	select {
 	case w.jobs <- job:
 		return true
@@ -66,8 +74,13 @@ func (w *Worker) Submit(job Job) bool {
 	}
 }
 
-// Stop closes the job channel and waits for in-flight jobs to finish.
-func (w *Worker) Stop() {
+// Stop refuses new submissions, closes the job channel, and waits for
+// in-flight jobs to finish. The ctx parameter is accepted for signature
+// parity with the river backend; this implementation does not honor it.
+func (w *Worker) Stop(_ context.Context) {
+	if !w.stopped.CompareAndSwap(false, true) {
+		return
+	}
 	close(w.jobs)
 	w.wg.Wait()
 }

@@ -44,6 +44,23 @@ func TestNew_AllFlagsResolved(t *testing.T) {
 	assertFile(t, outDir, "internal/health/handler.go")
 }
 
+func TestNew_OutputDefaultsFromName(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	_, _, err := runCmd(t,
+		"new", "myapp",
+		"--module", "github.com/you/myapp",
+		"--http", "chi",
+		"--async", "none",
+		"--no-sentry",
+		"--no-tui",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertFile(t, filepath.Join(dir, "myapp"), "go.mod")
+}
+
 func TestNew_NoTUI_MissingModule(t *testing.T) {
 	_, _, err := runCmd(t, "new", "myapp", "--no-tui")
 	if err == nil {

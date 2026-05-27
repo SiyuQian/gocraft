@@ -6,17 +6,20 @@
 package obs
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+
+	"{{.Module}}/internal/platform/config"
 )
 
-// Init is called once at startup. Implementations may consume env vars
+// Init is called once at startup. Implementations may consume cfg / env vars
 // (e.g. SENTRY_DSN) to set up SDKs. The no-op base returns immediately.
-func Init(_ *slog.Logger) {}
+func Init(_ config.Config, _ *slog.Logger) {}
 
-// Flush is deferred at the end of main(). Implementations should drain any
-// in-flight error/event queue before the process exits.
-func Flush() {}
+// Flush is called from main's shutdown path. Implementations should drain any
+// in-flight error/event queue, honouring ctx's deadline as the upper bound.
+func Flush(_ context.Context) {}
 
 // Middleware wraps an http.Handler with observability instrumentation. The
 // no-op base returns the handler unchanged.

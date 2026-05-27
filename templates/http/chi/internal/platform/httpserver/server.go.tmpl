@@ -18,13 +18,14 @@ func New(cfg config.Config, logger *slog.Logger, pool *db.Pool) *http.Server {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
+	r.Use(obs.Middleware)
 	r.Get("/healthz", health.Healthz)
 
 	if pool != nil {
 		h := pets.NewHandler(pets.NewService(pets.NewRepo(pool)), chiID)
 		h.Register(chiRouter{r})
 	}
-	return &http.Server{Addr: cfg.Addr, Handler: obs.Middleware(r)}
+	return &http.Server{Addr: cfg.Addr, Handler: r}
 }
 
 type chiRouter struct{ r chi.Router }

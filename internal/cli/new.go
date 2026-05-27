@@ -1,7 +1,10 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 
@@ -9,6 +12,15 @@ import (
 	"github.com/siyuqian/gocraft/internal/prompt"
 	"github.com/siyuqian/gocraft/internal/tui"
 )
+
+// runTidy fetches and tidies module dependencies in dir. Overridable in tests.
+var runTidy = func(ctx context.Context, dir string, stdout, stderr io.Writer) error {
+	c := exec.CommandContext(ctx, "go", "mod", "tidy")
+	c.Dir = dir
+	c.Stdout = stdout
+	c.Stderr = stderr
+	return c.Run()
+}
 
 func newNewCmd() *cobra.Command {
 	var cfg prompt.Config
@@ -45,7 +57,14 @@ func newNewCmd() *cobra.Command {
 			if err := generate.Render(cfg, fsys, generate.Layers(cfg), cfg.Output); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "created %s\nnext: cd %s && make run\n", cfg.Output, cfg.Output)
+			fmt.Fprintf(cmd.OutOrStdout(), "created %s\n", cfg.Output)
+
+			fmt.Fprintln(cmd.OutOrStdout(), "running go mod tidy...")
+			if err := runTidy(cmd.Context(), cfg.Output, cmd.OutOrStdout(), cmd.ErrOrStderr()); err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: go mod tidy failed: %v\nrun it manually in %s\n", err, cfg.Output)
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "next: cd %s && make run\n", cfg.Output)
 			return nil
 		},
 	}

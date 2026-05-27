@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +12,10 @@ import (
 
 func runCmd(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
+	prev := runTidy
+	runTidy = func(context.Context, string, io.Writer, io.Writer) error { return nil }
+	t.Cleanup(func() { runTidy = prev })
+
 	root := NewRoot()
 	var out, errb bytes.Buffer
 	root.SetOut(&out)

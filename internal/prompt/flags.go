@@ -16,4 +16,5 @@ func BindFlags(cmd *cobra.Command, c *Config) {
 	cmd.Flags().StringVar(&c.Output, "output", "", "output directory (default ./<name>)")
 	cmd.Flags().BoolVar(&c.NoTUI, "no-tui", false, "fail on missing options instead of prompting")
 	cmd.Flags().BoolVar(&c.NoGit, "no-git", false, "skip git init")
+	cmd.Flags().BoolVar(&c.NoTidy, "no-tidy", false, "skip post-render `go mod tidy` + import formatting")
 }

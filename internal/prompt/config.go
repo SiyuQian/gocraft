@@ -30,6 +30,7 @@ type Config struct {
 	Output string
 	NoTUI  bool
 	NoGit  bool
+	NoTidy bool
 }
 
 func (c Config) Validate() error {

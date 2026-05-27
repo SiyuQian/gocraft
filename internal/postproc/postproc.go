@@ -1,11 +1,17 @@
 // Package postproc runs cleanup steps after the template renderer has
-// written files: dependency resolution (`go mod tidy`), import grouping
-// (`goimports`), and an optional initial git commit. Each step is best-effort
-// — when a tool is unavailable, the step logs a warning and returns nil
-// rather than failing the whole scaffold.
+// written files: dependency resolution (`go mod tidy`), import formatting
+// (`goimports` with a `gofmt` fallback), and an optional initial git commit.
+//
+// Tidy returns errors verbatim — a failing `go mod tidy` almost always means
+// a real template bug (bad import path, missing module requirement) that
+// should not be silenced. Goimports and GitInit are best-effort: when their
+// preferred tool is missing they log a note to stderr and either fall back
+// to a stdlib alternative or skip the step, rather than failing the whole
+// scaffold.
 package postproc
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -14,8 +20,8 @@ import (
 // Tidy runs `go mod tidy` in dir. Errors are returned because a failing tidy
 // usually means a real template bug (bad import path, missing module
 // requirement) that should not be silenced.
-func Tidy(dir string, stderr io.Writer) error {
-	cmd := exec.Command("go", "mod", "tidy")
+func Tidy(ctx context.Context, dir string, stderr io.Writer) error {
+	cmd := exec.CommandContext(ctx, "go", "mod", "tidy")
 	cmd.Dir = dir
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
@@ -24,36 +30,43 @@ func Tidy(dir string, stderr io.Writer) error {
 	return nil
 }
 
-// Goimports runs `goimports -w .` to normalize imports. If goimports is not
-// on PATH, the step is silently skipped: stdlib `gofmt` ran via `go mod
-// tidy` already handles syntactic formatting, and goimports is a nicety.
-func Goimports(dir string, stderr io.Writer) error {
+// Goimports runs `goimports -w .` to group and format imports. If goimports
+// is not on PATH, falls back to `gofmt -w .` (which ships with the Go
+// toolchain) so the generated project is at least syntactically formatted.
+func Goimports(ctx context.Context, dir string, stderr io.Writer) error {
+	tool := "goimports"
 	if _, err := exec.LookPath("goimports"); err != nil {
-		fmt.Fprintln(stderr, "note: goimports not found on PATH, skipping import grouping")
-		return nil
+		fmt.Fprintln(stderr, "note: goimports not found on PATH, falling back to gofmt")
+		tool = "gofmt"
 	}
-	cmd := exec.Command("goimports", "-w", ".")
+	cmd := exec.CommandContext(ctx, tool, "-w", ".")
 	cmd.Dir = dir
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("goimports in %s: %w", dir, err)
+		return fmt.Errorf("%s in %s: %w", tool, dir, err)
 	}
 	return nil
 }
 
-// GitInit initializes a git repository in dir and creates an initial commit
-// of all files. Skipped silently if git is not on PATH.
-func GitInit(dir string, stderr io.Writer) error {
+// GitInit initializes a git repository in dir on branch `main` and creates an
+// initial commit of all files. Skipped silently if git is not on PATH.
+// Identity is passed inline so the commit succeeds even when the host has no
+// global git user configured (fresh containers, CI runners).
+func GitInit(ctx context.Context, dir string, stderr io.Writer) error {
 	if _, err := exec.LookPath("git"); err != nil {
 		fmt.Fprintln(stderr, "note: git not found on PATH, skipping git init")
 		return nil
 	}
 	for _, args := range [][]string{
-		{"init", "--quiet"},
+		{"init", "--quiet", "-b", "main"},
 		{"add", "."},
-		{"commit", "--quiet", "-m", "initial scaffold"},
+		{
+			"-c", "user.email=gocraft@localhost",
+			"-c", "user.name=gocraft",
+			"commit", "--quiet", "-m", "initial scaffold",
+		},
 	} {
-		cmd := exec.Command("git", args...)
+		cmd := exec.CommandContext(ctx, "git", args...)
 		cmd.Dir = dir
 		cmd.Stderr = stderr
 		if err := cmd.Run(); err != nil {

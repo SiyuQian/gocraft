@@ -13,7 +13,6 @@ import (
 
 func newNewCmd() *cobra.Command {
 	var cfg prompt.Config
-	var skipTidy bool
 
 	cmd := &cobra.Command{
 		Use:   "new [project-name]",
@@ -48,17 +47,18 @@ func newNewCmd() *cobra.Command {
 				return err
 			}
 
+			ctx := cmd.Context()
 			stderr := cmd.ErrOrStderr()
-			if !skipTidy {
-				if err := postproc.Tidy(cfg.Output, stderr); err != nil {
+			if !cfg.NoTidy {
+				if err := postproc.Tidy(ctx, cfg.Output, stderr); err != nil {
 					return err
 				}
-				if err := postproc.Goimports(cfg.Output, stderr); err != nil {
+				if err := postproc.Goimports(ctx, cfg.Output, stderr); err != nil {
 					return err
 				}
 			}
 			if !cfg.NoGit {
-				if err := postproc.GitInit(cfg.Output, stderr); err != nil {
+				if err := postproc.GitInit(ctx, cfg.Output, stderr); err != nil {
 					return err
 				}
 			}
@@ -69,6 +69,5 @@ func newNewCmd() *cobra.Command {
 	}
 
 	prompt.BindFlags(cmd, &cfg)
-	cmd.Flags().BoolVar(&skipTidy, "no-tidy", false, "skip 'go mod tidy' after rendering (faster, but generated project will not build until you run it)")
 	return cmd
 }

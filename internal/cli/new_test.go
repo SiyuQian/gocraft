@@ -54,6 +54,8 @@ func TestNew_OutputDefaultsFromName(t *testing.T) {
 		"--async", "none",
 		"--no-sentry",
 		"--no-tui",
+		"--no-tidy",
+		"--no-git",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

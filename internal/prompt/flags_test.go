@@ -38,6 +38,7 @@ func TestBindFlags_AllSet(t *testing.T) {
 		"--output", "/tmp/myapp",
 		"--no-tui",
 		"--no-git",
+		"--no-tidy",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -62,5 +63,8 @@ func TestBindFlags_AllSet(t *testing.T) {
 	}
 	if !c.NoGit {
 		t.Errorf("NoGit = false")
+	}
+	if !c.NoTidy {
+		t.Errorf("NoTidy = false")
 	}
 }

@@ -27,6 +27,10 @@ gocraft new myapp            # name on the CLI, TUI for the rest
 cd myapp && make run
 ```
 
+`gocraft new` runs `go mod tidy` for you after scaffolding, so the
+generated project is ready to build immediately. If tidy fails (e.g. no
+network), gocraft prints a warning and you can rerun it manually.
+
 ## Non-interactive
 
 Pass every option as a flag and add `--no-tui`:
